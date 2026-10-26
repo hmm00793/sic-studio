@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c1726">
+  <meta name="description" content="交互式 SiC MOSFET Sentaurus Structure Editor 脚本生成器：调整结构、掺杂和网格参数，实时预览并下载 SDE .cmd 文件。">
+  <title>SiC Studio · SDE 脚本生成器</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230c1726'/%3E%3Cpath d='M17 44V20h30v24M17 31h30' stroke='%235be1ca' stroke-width='5' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="SiC Studio 首页">
+        <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><rect x="5" y="5" width="22" height="22" rx="5"/><path d="M10 21V11h12v10M10 16h12"/></svg></span>
+        <span><strong>SiC Studio</strong><small>器件结构实验台</small></span>
+      </a>
+      <nav class="header-actions" aria-label="页面操作">
+        <button class="text-button" id="help-button" type="button">使用说明</button>
+        <button class="text-button" id="import-button" type="button">导入配置</button>
+        <button class="button button-outline" id="export-config" type="button">导出配置</button>
+        <button class="button button-primary" id="download-code-top" type="button">下载 .cmd <span aria-hidden="true">↗</span></button>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <div class="eyebrow"><span class="live-dot"></span> 浏览器本地生成 · Sentaurus Structure Editor</div>
+          <h1 id="page-title">把器件参数，<br><em>变成可运行的代码。</em></h1>
+          <p>从你的 SiC MOSFET 脚本出发，调整结构、掺杂和网格；右侧同步展示二维示意与完整 SDE 命令。</p>
+        </div>
+        <div class="hero-metrics" aria-label="当前器件摘要">
+          <div><span>器件宽度</span><strong id="metric-width">—</strong><small>μm</small></div>
+          <div><span>SiC 厚度</span><strong id="metric-height">—</strong><small>μm</small></div>
+          <div><span>栅氧厚度</span><strong id="metric-oxide">—</strong><small>nm</small></div>
+        </div>
+      </section>
+
+      <section class="preset-bar" aria-label="实验预设">
+        <div class="preset-heading"><span class="section-kicker">QUICK START</span><strong>选一个实验起点</strong></div>
+        <div class="preset-list" role="group" aria-label="实验预设">
+          <button class="preset is-active" type="button" data-preset="baseline"><span class="preset-symbol">01</span><span><strong>原始参数</strong><small>与你提供的脚本一致</small></span></button>
+          <button class="preset" type="button" data-preset="shallow"><span class="preset-symbol">02</span><span><strong>浅 P-base</strong><small>深度 1.1 → 0.8 μm</small></span></button>
+          <button class="preset" type="button" data-preset="oxide"><span class="preset-symbol">03</span><span><strong>厚栅氧</strong><small>厚度 40 → 80 nm</small></span></button>
+        </div>
+      </section>
+
+      <div class="workspace">
+        <aside class="controls-card" aria-labelledby="controls-title">
+          <div class="panel-header">
+            <div><span class="section-kicker">PARAMETERS</span><h2 id="controls-title">参数控制台</h2></div>
+            <button class="icon-button" id="reset-button" type="button" title="恢复原始参数" aria-label="恢复原始参数">↺</button>
+          </div>
+          <div class="tab-list" role="tablist" aria-label="参数类别">
+            <button type="button" class="tab is-active" role="tab" aria-selected="true" data-tab="geometry">结构</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="doping">掺杂</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-tab="mesh">网格</button>
+          </div>
+          <div class="controls-body" id="controls-body" role="tabpanel" aria-live="polite"></div>
+          <div class="controls-footnote"><span aria-hidden="true">ⓘ</span> 参数改动只在你的浏览器中保存，不会上传到服务器。</div>
+        </aside>
+
+        <div class="results-column">
+          <section class="preview-card" aria-labelledby="preview-title">
+            <div class="panel-header preview-heading">
+              <div><span class="section-kicker">LIVE PREVIEW</span><h2 id="preview-title">器件截面</h2></div>
+              <div class="view-switch" role="group" aria-label="预览模式">
+                <button type="button" class="view-button is-active" data-view="doping" aria-pressed="true">掺杂</button>
+                <button type="button" class="view-button" data-view="structure" aria-pressed="false">结构</button>
+                <button type="button" class="view-button" data-view="mesh" aria-pressed="false">网格</button>
+              </div>
+            </div>
+            <div class="preview-stage">
+              <svg id="device-svg" viewBox="0 0 740 420" role="img" aria-label="SiC MOSFET 二维结构示意"></svg>
+            </div>
+            <div class="preview-footer">
+              <div class="legend"><span><i class="swatch swatch-n"></i>N 型</span><span><i class="swatch swatch-p"></i>P 型</span><span><i class="swatch swatch-oxide"></i>氧化层</span><span><i class="swatch swatch-poly"></i>多晶硅</span></div>
+              <span class="preview-disclaimer">结构示意 · 非实际仿真或网格图</span>
+            </div>
+          </section>
+
+          <section class="insight-card" aria-labelledby="insight-title">
+            <div class="insight-icon" aria-hidden="true">↗</div>
+            <div><span class="section-kicker">WHAT CHANGED</span><h3 id="insight-title">相对原始参数</h3><p id="insight-text">当前使用原始参数。选择预设或修改左侧数值，查看变化。</p></div>
+          </section>
+
+          <section class="code-card" aria-labelledby="code-title">
+            <div class="panel-header code-heading">
+              <div><span class="section-kicker">GENERATED SCRIPT</span><h2 id="code-title">SDE 命令文件 <span class="file-chip">.cmd</span></h2></div>
+              <div class="code-actions"><button class="button button-subtle" id="copy-code" type="button">复制代码</button><button class="button button-primary" id="download-code" type="button">下载 .cmd</button></div>
+            </div>
+            <div id="validation" class="validation" role="status" aria-live="polite"></div>
+            <div class="code-toolbar"><span><span class="code-light"></span> SiC_MOSFET_sde.cmd</span><span id="line-count">— 行</span></div>
+            <pre class="code-window"><code id="code-output"></code></pre>
+            <div class="code-footnote">`@node@` 由 Sentaurus Workbench 替换。此文件生成结构与网格；I–V、击穿等电学结果还需要 SDevice。</div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer"><span>SiC Studio · 基于你提供的 SiC MOSFET SDE 脚本</span><span>本地生成 · 无后端 · 适用于 GitHub Pages</span></footer>
+  </div>
+
+  <input type="file" id="config-file" accept="application/json,.json" hidden>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-header"><div><span class="section-kicker">GETTING STARTED</span><h2 id="help-title">三步开始实验</h2></div><button class="icon-button" id="close-help" type="button" aria-label="关闭">×</button></div>
+    <ol>
+      <li><strong>选择预设或修改参数。</strong>右侧结构示意和脚本会同步更新；掺杂浓度采用 cm⁻³，长度采用 μm。</li>
+      <li><strong>下载 .cmd。</strong>将文件内容放进 Sentaurus Workbench 的 SDE 节点，运行后在 Visual 打开对应的 <code>n…_msh.tdr</code>。</li>
+      <li><strong>比较结果。</strong>建议每组参数使用独立实验，避免覆盖输出。观察掺杂图与网格；若要电学曲线，还需运行 SDevice。</li>
+    </ol>
+    <p class="dialog-note">预览图只是帮助定位区域，不能代替 Sentaurus Visual 的数值结果。</p>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
